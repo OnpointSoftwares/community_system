@@ -70,7 +70,7 @@ The Community Management System is a comprehensive web application designed to s
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/community_system.git
+   git clone https://github.com/OnpointSoftwares/community_system.git
    cd community_system
    ```
 
