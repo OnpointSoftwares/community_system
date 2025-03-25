@@ -52,14 +52,19 @@ const CreateAlert = () => {
         setZonesLoading(true);
         
         let zonesData = [];
+        const token = localStorage.getItem('token');
         
-        if (user.role === 'leader') {
+        if (user?.role === 'leader') {
           // Leaders can only create alerts for their assigned zones
-          const res = await axios.get(`/api/leaders/${user.id}/zones`);
+          const res = await axios.get(`/api/leaders/${user._id}/zones`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
           zonesData = res.data.data;
-        } else if (user.role === 'admin') {
-          // Admins can create alerts for any zone
-          const res = await axios.get('/api/zones');
+        } else {
+          // Use public endpoint for all non-leader users to avoid authorization issues
+          const res = await axios.get('/api/nyumbakumi/zones/public');
           zonesData = res.data.data;
         }
         

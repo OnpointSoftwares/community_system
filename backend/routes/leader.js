@@ -27,6 +27,16 @@ router.get('/', async (req, res) => {
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
+    // Validate the ID parameter
+    if (!req.params.id || req.params.id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid leader ID provided' });
+    }
+    
+    // Check if it's a valid ObjectId format to prevent casting errors
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid leader ID format' });
+    }
+    
     const leader = await User.findOne({ 
       _id: req.params.id,
       role: 'leader'
@@ -41,7 +51,7 @@ router.get('/:id', async (req, res) => {
       data: leader
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching leader:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -51,6 +61,16 @@ router.get('/:id', async (req, res) => {
 // @access  Public
 router.get('/:id/zones', async (req, res) => {
   try {
+    // Validate the ID parameter
+    if (!req.params.id || req.params.id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid leader ID provided' });
+    }
+    
+    // Check if it's a valid ObjectId format to prevent casting errors
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid leader ID format' });
+    }
+    
     const zones = await NyumbaKumiZone.find({ leader: req.params.id });
 
     res.status(200).json({
@@ -59,7 +79,7 @@ router.get('/:id/zones', async (req, res) => {
       data: zones
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching zones:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -69,6 +89,16 @@ router.get('/:id/zones', async (req, res) => {
 // @access  Private (Admin only)
 router.post('/:id/zones', protect, authorize('admin'), async (req, res) => {
   try {
+    // Validate the ID parameter
+    if (!req.params.id || req.params.id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid leader ID provided' });
+    }
+    
+    // Check if it's a valid ObjectId format to prevent casting errors
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid leader ID format' });
+    }
+    
     // Check if leader exists
     const leader = await User.findOne({ 
       _id: req.params.id,
@@ -88,7 +118,7 @@ router.post('/:id/zones', protect, authorize('admin'), async (req, res) => {
       data: zone
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error creating zone:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -98,6 +128,16 @@ router.post('/:id/zones', protect, authorize('admin'), async (req, res) => {
 // @access  Private (Admin or the leader themselves)
 router.put('/:id', protect, async (req, res) => {
   try {
+    // Validate the ID parameter
+    if (!req.params.id || req.params.id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid leader ID provided' });
+    }
+    
+    // Check if it's a valid ObjectId format to prevent casting errors
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid leader ID format' });
+    }
+    
     let leader = await User.findOne({ 
       _id: req.params.id,
       role: 'leader'
@@ -132,7 +172,7 @@ router.put('/:id', protect, async (req, res) => {
       data: leader
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error updating leader profile:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

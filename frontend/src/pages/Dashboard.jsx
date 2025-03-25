@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Row, Col, Card, Alert, Spinner } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell, faHome, faStar, faUsers, faUserEdit, faTachometerAlt, faChartBar } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faHome, faStar, faUsers, faUserEdit, faTachometerAlt, faChartBar, faTasks, faClipboardCheck } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router-dom';
 import AuthContext from '../utils/AuthContext';
 import axios from 'axios';
@@ -13,7 +13,9 @@ const Dashboard = () => {
   const [alerts, setAlerts] = useState([]);
   const [stats, setStats] = useState({
     alertsCount: 0,
-    ratingsCount: 0
+    ratingsCount: 0,
+    tasksCount: 0,
+    pendingTasksCount: 0
   });
   const [error, setError] = useState(null);
 
@@ -25,11 +27,23 @@ const Dashboard = () => {
         // Get latest alerts for household users
         const alertsRes = await axios.get('/api/alerts?limit=5');
         setAlerts(alertsRes.data.data);
+
+        // Get tasks count for household members
+        let tasksCount = 0;
+        let pendingTasksCount = 0;
+        
+        if (user.role === 'household') {
+          const tasksRes = await axios.get('/api/tasks');
+          tasksCount = tasksRes.data.count;
+          pendingTasksCount = tasksRes.data.data.filter(task => task.status !== 'completed').length;
+        }
         
         // Get basic stats
         setStats({
           alertsCount: alertsRes.data.count,
-          ratingsCount: 0 // This would come from a ratings endpoint
+          ratingsCount: 0, // This would come from a ratings endpoint
+          tasksCount,
+          pendingTasksCount
         });
         
         setLoading(false);
@@ -122,15 +136,26 @@ const Dashboard = () => {
             </Col>
             
             {user?.role === 'household' && (
-              <Col sm={12}>
-                <Card className="mb-4 dashboard-stat-card">
-                  <Card.Body>
-                    <FontAwesomeIcon icon={faStar} className="icon" />
-                    <h3 className="mb-0">{stats.ratingsCount}</h3>
-                    <p className="text-muted">My Ratings</p>
-                  </Card.Body>
-                </Card>
-              </Col>
+              <>
+                <Col sm={12}>
+                  <Card className="mb-4 dashboard-stat-card">
+                    <Card.Body>
+                      <FontAwesomeIcon icon={faStar} className="icon" />
+                      <h3 className="mb-0">{stats.ratingsCount}</h3>
+                      <p className="text-muted">My Ratings</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col sm={12}>
+                  <Card className="mb-4 dashboard-stat-card task-card">
+                    <Card.Body>
+                      <FontAwesomeIcon icon={faTasks} className="icon" />
+                      <h3 className="mb-0">{stats.pendingTasksCount}</h3>
+                      <p className="text-muted">Pending Tasks</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </>
             )}
 
             <Col sm={12}>

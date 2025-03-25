@@ -38,6 +38,12 @@ const TaskDetail = () => {
   const handleStatusChange = async (newStatus) => {
     try {
       await axios.put(`/api/tasks/${id}`, { status: newStatus });
+      
+      // If the task is being marked as completed, show the rating modal
+      if (newStatus === 'completed') {
+        setShowRatingModal(true);
+      }
+      
       fetchTask(); // Refresh the task
     } catch (err) {
       setError('Error updating task status: ' + (err.response?.data?.message || err.message));
@@ -57,20 +63,47 @@ const TaskDetail = () => {
   const ratingSchema = Yup.object().shape({
     rating: Yup.number()
       .required('Rating is required')
-      .min(0, 'Rating must be at least 0')
+      .min(1, 'Rating must be at least 1')
       .max(5, 'Rating cannot be more than 5'),
     feedback: Yup.string()
       .required('Feedback is required')
       .min(10, 'Feedback must be at least 10 characters')
-      .max(300, 'Feedback cannot be more than 300 characters')
+      .max(300, 'Feedback cannot be more than 300 characters'),
+    rateHousehold: Yup.boolean()
+      .default(true)
   });
 
   const handleRateTask = async (values, { setSubmitting }) => {
     try {
-      await axios.put(`/api/tasks/${id}/rate`, values);
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+      
+      // Rate the task
+      await axios.put(`/api/tasks/${id}/rate`, {
+        rating: values.rating,
+        feedback: values.feedback
+      }, { headers });
+      
+      // If user chose to rate the household, create a household rating as well
+      if (values.rateHousehold && task.assignedTo) {
+        // Get the category from the task
+        const category = task.category || 'general';
+        
+        // Create a rating for the household based on task completion quality
+        await axios.post('/api/ratings', {
+          household: task.assignedTo._id || task.assignedTo,
+          rating: values.rating,
+          comment: `Rating based on task completion: ${task.title}. ${values.feedback}`,
+          category: category
+        }, { headers });
+      }
+      
       setShowRatingModal(false);
       fetchTask(); // Refresh the task
     } catch (err) {
+      console.error('Error rating task:', err);
       setError('Error rating task: ' + (err.response?.data?.message || err.message));
       setSubmitting(false);
     }
@@ -323,7 +356,7 @@ const TaskDetail = () => {
         </Modal.Header>
         <Modal.Body>
           <Formik
-            initialValues={{ rating: 3, feedback: '' }}
+            initialValues={{ rating: 3, feedback: '', rateHousehold: true }}
             validationSchema={ratingSchema}
             onSubmit={handleRateTask}
           >
@@ -372,6 +405,20 @@ const TaskDetail = () => {
                   <Form.Control.Feedback type="invalid">
                     {errors.feedback}
                   </Form.Control.Feedback>
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Check
+                    type="checkbox"
+                    id="rateHousehold"
+                    name="rateHousehold"
+                    label="Also rate the household based on this task completion"
+                    checked={values.rateHousehold}
+                    onChange={handleChange}
+                  />
+                  <Form.Text className="text-muted">
+                    This will create a rating for the household in the same category as the task.
+                  </Form.Text>
                 </Form.Group>
 
                 <div className="d-flex justify-content-end mt-3">

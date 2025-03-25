@@ -25,37 +25,79 @@ const LeaderDashboard = () => {
     const fetchLeaderData = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem('token');
+        const headers = {
+          Authorization: `Bearer ${token}`
+        };
         
-        // Get leader's zones
-        const zonesRes = await axios.get(`/api/leaders/${user.id}/zones`);
-        setZones(zonesRes.data.data);
+        // Get leader's zones - Use _id instead of id
+        const zonesRes = await axios.get(`/api/leaders/${user._id}/zones`, { headers });
+        const leaderZones = zonesRes.data.data;
+        setZones(leaderZones);
         
-        // Fetch recent tasks assigned by this leader
-        const tasksRes = await axios.get('/api/tasks?limit=5');
-        setRecentTasks(tasksRes.data.data || []);
+        // Get all zone IDs assigned to this leader
+        const zoneIds = leaderZones.map(zone => zone._id);
         
-        // This would normally call multiple endpoints to get required data
-        // Calculate tasks statistics
-        const completedTasks = tasksRes.data.data ? tasksRes.data.data.filter(task => task.status === 'completed') : [];
+        // Fetch households count for these zones
+        const householdsPromises = zoneIds.map(zoneId => 
+          axios.get(`/api/households?nyumbaKumiZone=${zoneId}`, { headers })
+        );
+        const householdResults = await Promise.all(householdsPromises);
+        const householdsCount = householdResults.reduce((total, res) => total + (res.data.count || 0), 0);
         
-        // For now, we'll set some placeholder data
+        // Fetch alerts count
+        const alertsRes = await axios.get('/api/alerts', { headers });
+        // Filter alerts for leader's zones only
+        const leaderAlerts = alertsRes.data.data ? alertsRes.data.data.filter(alert => 
+          zoneIds.includes(alert.nyumbaKumiZone)) : [];
+        const alertsCount = leaderAlerts.length;
+        
+        // Fetch ratings for leader's zones
+        const ratingsRes = await axios.get('/api/ratings', { headers });
+        const leaderRatings = ratingsRes.data.data ? ratingsRes.data.data.filter(rating => {
+          // Check if the rating's household is in one of the leader's zones
+          // This is an approximation as we would need to fetch each household to check its zone
+          return rating.user === user._id;
+        }) : [];
+        const ratingsCount = leaderRatings.length;
+        
+        // Calculate average zone rating
+        let avgRating = 0;
+        if (ratingsCount > 0) {
+          const totalRating = leaderRatings.reduce((sum, rating) => sum + rating.rating, 0);
+          avgRating = totalRating / ratingsCount;
+        }
+        
+        // Fetch tasks assigned by this leader or for their zones
+        const tasksRes = await axios.get('/api/tasks', { headers });
+        // Filter for tasks created by this leader or assigned to households in their zones
+        const leaderTasks = tasksRes.data.data ? tasksRes.data.data.filter(task => 
+          task.user === user._id || zoneIds.includes(task.nyumbaKumiZone)
+        ) : [];
+        setRecentTasks(leaderTasks.slice(0, 5)); // Show only 5 most recent tasks
+        
+        // Calculate completed tasks
+        const completedTasks = leaderTasks.filter(task => task.status === 'completed');
+        
+        // Set actual stats
         setStats({
-          householdsCount: 12,
-          alertsCount: 5,
-          ratingsCount: 23,
-          tasksCount: tasksRes.data.count || 8,
-          completedTasksCount: completedTasks.length || 3,
-          averageZoneRating: 4.2
+          householdsCount,
+          alertsCount,
+          ratingsCount,
+          tasksCount: leaderTasks.length,
+          completedTasksCount: completedTasks.length,
+          averageZoneRating: avgRating
         });
         
         setLoading(false);
       } catch (err) {
+        console.error(err);
         setError('Error loading leader dashboard data');
         setLoading(false);
       }
     };
 
-    if (user && user.id) {
+    if (user && user._id) {
       fetchLeaderData();
     }
   }, [user]);

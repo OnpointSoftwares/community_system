@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import AuthContext from '../utils/AuthContext';
+import axios from 'axios';
 
 // Validation schema
 const registerSchema = Yup.object().shape({
@@ -22,12 +23,34 @@ const registerSchema = Yup.object().shape({
     .matches(/^[0-9]+$/, 'Phone number must contain only digits'),
   role: Yup.string()
     .required('Please select a role')
-    .oneOf(['household', 'leader'], 'Invalid role selected'),
+    .oneOf(['household', 'leader', 'admin'], 'Invalid role selected'),
+
+  zoneId: Yup.string()
+    .when('role', {
+      is: (val) => val === 'leader',
+      then: () => Yup.string().required('Please select a zone'),
+      otherwise: () => Yup.string().notRequired()
+    }),
+  householdId: Yup.string()
+    .when('role', {
+      is: (val) => val === 'household',
+      then: () => Yup.string().required('Please select a household'),
+      otherwise: () => Yup.string().notRequired()
+    }),
+  adminCode: Yup.string()
+    .when('role', {
+      is: (val) => val === 'admin',
+      then: () => Yup.string().required('Admin registration code is required'),
+      otherwise: () => Yup.string().notRequired()
+    })
 });
 
 const Register = () => {
   const { register, isAuthenticated, error, clearErrors } = useContext(AuthContext);
   const [registerError, setRegisterError] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [households, setHouseholds] = useState([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,6 +67,36 @@ const Register = () => {
 
     // eslint-disable-next-line
   }, [isAuthenticated, error]);
+  
+  // Fetch available zones for leaders to select from
+  const fetchZones = async () => {
+    try {
+      setLoading(true);
+      // Fetch zones without authentication (public endpoint)
+      const response = await axios.get('/api/nyumbakumi/zones/public');
+      setZones(response.data.data || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching zones:', err);
+      setRegisterError('Error fetching zones. Please try again.');
+      setLoading(false);
+    }
+  };
+  
+  // Fetch available households for household members to select from
+  const fetchHouseholds = async () => {
+    try {
+      setLoading(true);
+      // Fetch households without authentication (public endpoint)
+      const response = await axios.get('/api/households/public');
+      setHouseholds(response.data.data || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching households:', err);
+      setRegisterError('Error fetching households. Please try again.');
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (values, { setSubmitting }) => {
     setRegisterError(null);
@@ -79,6 +132,7 @@ const Register = () => {
               confirmPassword: '',
               phoneNumber: '',
               role: 'household',
+
             }}
             validationSchema={registerSchema}
             onSubmit={handleSubmit}
@@ -194,6 +248,7 @@ const Register = () => {
                   >
                     <option value="household">Household Member</option>
                     <option value="leader">Nyumba Kumi Leader</option>
+                    <option value="admin">Administrator</option>
                   </Form.Select>
                   <Form.Control.Feedback type="invalid">
                     {errors.role}
@@ -202,6 +257,8 @@ const Register = () => {
                     Leader accounts require approval from an administrator.
                   </Form.Text>
                 </Form.Group>
+                
+
 
                 <Button
                   variant="primary"

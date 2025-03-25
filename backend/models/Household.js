@@ -41,10 +41,17 @@ const HouseholdSchema = new mongoose.Schema({
   // Average rating calculated from all ratings
   averageRating: {
     type: Number,
-    min: [1, 'Rating must be at least 1'],
+    min: [0, 'Rating cannot be negative'],
     max: [5, 'Rating cannot be more than 5'],
     default: 0
-  }
+  },
+  // Array of users who belong to this household
+  members: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  ]
 });
 
 module.exports = mongoose.model('Household', HouseholdSchema);

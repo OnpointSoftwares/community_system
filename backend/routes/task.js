@@ -14,9 +14,14 @@ router.get('/', protect, async (req, res) => {
     const { status, priority, household, category } = req.query;
     const filterQuery = {};
     
-    // If user is a leader, they can only see tasks they assigned
+    // If user is a leader or admin, they can see tasks they assigned
     if (req.user.role === 'leader' || req.user.role === 'admin') {
-      filterQuery.assignedBy = req.user.id;
+      // Allow leader/admin to view all tasks or filter by household if specified
+      if (household) {
+        filterQuery.assignedTo = household;
+      } else {
+        filterQuery.assignedBy = req.user.id;
+      }
     }
     
     // If user is a household member, they can only see tasks assigned to their household

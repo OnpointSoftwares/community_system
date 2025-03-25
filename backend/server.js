@@ -8,6 +8,7 @@ const leaderRoutes = require('./routes/leader');
 const alertRoutes = require('./routes/alert');
 const ratingRoutes = require('./routes/rating');
 const taskRoutes = require('./routes/task');
+const nyumbaKumiRoutes = require('./routes/nyumbakumi');
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/leaders', leaderRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/nyumbakumi', nyumbaKumiRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

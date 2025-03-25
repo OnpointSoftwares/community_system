@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Household = require('../models/Household');
+const NyumbaKumiZone = require('../models/NyumbaKumiZone');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET /api/households
@@ -94,8 +95,8 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    // Add user to req.body
-    req.body.user = req.user.id;
+    // Add user to req.body - MongoDB uses _id not id
+    req.body.user = req.user._id;
 
     // Create household
     const household = await Household.create(req.body);
@@ -131,6 +132,98 @@ router.put('/:id', protect, async (req, res) => {
       runValidators: true
     });
 
+    res.status(200).json({
+      success: true,
+      data: household
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/households/:id/members
+// @desc    Add a user to household members
+// @access  Private (Admin, Leader)
+router.post('/:id/members', protect, authorize('admin', 'leader'), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'Please provide a user ID' });
+    }
+    
+    const household = await Household.findById(req.params.id);
+    
+    if (!household) {
+      return res.status(404).json({ message: 'Household not found' });
+    }
+    
+    // Check if user is already a member
+    if (household.members.includes(userId)) {
+      return res.status(400).json({ message: 'User is already a member of this household' });
+    }
+    
+    // Add user to household members
+    household.members.push(userId);
+    await household.save();
+    
+    res.status(200).json({
+      success: true,
+      data: household
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/households/:id/members/:userId
+// @desc    Remove a user from household members
+// @access  Private (Admin, Leader)
+router.delete('/:id/members/:userId', protect, authorize('admin', 'leader'), async (req, res) => {
+  try {
+    const household = await Household.findById(req.params.id);
+    
+    if (!household) {
+      return res.status(404).json({ message: 'Household not found' });
+    }
+    
+    // Check if user is a member
+    if (!household.members.includes(req.params.userId)) {
+      return res.status(400).json({ message: 'User is not a member of this household' });
+    }
+    
+    // Remove user from household members
+    household.members = household.members.filter(
+      member => member.toString() !== req.params.userId
+    );
+    await household.save();
+    
+    res.status(200).json({
+      success: true,
+      data: household
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/households/my-household
+// @desc    Get the household a user belongs to
+// @access  Private
+router.get('/my-household', protect, async (req, res) => {
+  try {
+    // Find household where the user is a member
+    const household = await Household.findOne({ members: req.user.id })
+      .populate('nyumbaKumiZone', 'name')
+      .populate('members', 'name email phoneNumber');
+    
+    if (!household) {
+      return res.status(404).json({ message: 'You are not associated with any household' });
+    }
+    
     res.status(200).json({
       success: true,
       data: household

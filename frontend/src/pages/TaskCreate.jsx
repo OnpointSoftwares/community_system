@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Card, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faClock, faTag, faHome } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faClock, faTag, faHome, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import AuthContext from '../utils/AuthContext';
@@ -13,6 +13,7 @@ const TaskCreate = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [households, setHouseholds] = useState([]);
+  const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -24,6 +25,8 @@ const TaskCreate = () => {
     description: Yup.string()
       .required('Task description is required')
       .max(500, 'Description cannot be more than 500 characters'),
+    zoneId: Yup.string()
+      .required('Please select a zone'),
     assignedTo: Yup.string()
       .required('Please select a household'),
     dueDate: Yup.date()
@@ -41,13 +44,14 @@ const TaskCreate = () => {
   const initialValues = {
     title: '',
     description: '',
+    zoneId: '',
     assignedTo: '',
     dueDate: '',
     priority: 'medium',
     category: 'other'
   };
 
-  // Fetch households on component mount
+  // Fetch zones and households on component mount
   useEffect(() => {
     // Only leaders and admins can create tasks
     if (user?.role !== 'leader' && user?.role !== 'admin') {
@@ -55,21 +59,54 @@ const TaskCreate = () => {
       return;
     }
     
-    const fetchHouseholds = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        // If user is leader, fetch only their zone's households
-        // If admin, fetch all households
-        const response = await axios.get('/api/households');
-        setHouseholds(response.data.data);
+        // Set the authorization header with the token
+        const token = localStorage.getItem('token');
+        
+        // Fetch zones first
+        let zonesData = [];
+        
+        if (user?.role === 'leader') {
+          // Leaders can only access their assigned zones
+          const zonesRes = await axios.get(`/api/leaders/${user._id}/zones`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          zonesData = zonesRes.data.data || [];
+        } else {
+          // Use public endpoint for all non-leader users
+          const zonesRes = await axios.get('/api/nyumbakumi/zones/public');
+          zonesData = zonesRes.data.data || [];
+        }
+        
+        setZones(zonesData);
+        
+        // Then fetch households
+        const householdsRes = await axios.get('/api/households', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (householdsRes.data && householdsRes.data.data && Array.isArray(householdsRes.data.data)) {
+          setHouseholds(householdsRes.data.data);
+        } else {
+          console.error('Invalid household data format:', householdsRes.data);
+          setError('Error: Invalid household data format received');
+        }
+        
         setLoading(false);
       } catch (err) {
-        setError('Error loading households: ' + (err.response?.data?.message || err.message));
+        console.error('Error fetching data:', err);
+        setError('Error loading data: ' + (err.response?.data?.message || err.message));
         setLoading(false);
       }
     };
 
-    fetchHouseholds();
+    fetchData();
   }, [user, navigate]);
 
   // Handle form submission
@@ -162,6 +199,33 @@ const TaskCreate = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
+                        <FontAwesomeIcon icon={faMapMarkerAlt} className="me-2" />
+                        Select Zone
+                      </Form.Label>
+                      <Form.Select
+                        name="zoneId"
+                        value={values.zoneId}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={touched.zoneId && errors.zoneId}
+                        disabled={loading || zones.length === 0}
+                      >
+                        <option value="">Select a zone</option>
+                        {zones.map(zone => (
+                          <option key={zone._id} value={zone._id}>
+                            {zone.name} ({zone.location})
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {errors.zoneId}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>
                         <FontAwesomeIcon icon={faHome} className="me-2" />
                         Assign to Household
                       </Form.Label>
@@ -174,11 +238,14 @@ const TaskCreate = () => {
                         disabled={loading || households.length === 0}
                       >
                         <option value="">Select a household</option>
-                        {households.map(household => (
-                          <option key={household._id} value={household._id}>
-                            {household.name} ({household.address})
-                          </option>
-                        ))}
+                        {households
+                          .filter(household => !values.zoneId || (household.nyumbaKumiZone && household.nyumbaKumiZone.toString() === values.zoneId))
+                          .map(household => (
+                            <option key={household._id} value={household._id}>
+                              {household.address} ({household.houseNumber})
+                            </option>
+                          ))
+                        }
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {errors.assignedTo}

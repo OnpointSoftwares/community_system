@@ -108,7 +108,7 @@ const HouseholdsList = () => {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>Households</h1>
-        {user.role === 'admin' && (
+        {(user.role === 'admin' || user.role === 'leader') && (
           <Button as={Link} to="/households/new" variant="primary">
             <FontAwesomeIcon icon={faHome} className="me-2" />
             Add Household

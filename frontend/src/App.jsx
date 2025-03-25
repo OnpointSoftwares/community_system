@@ -15,8 +15,10 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import LeaderDashboard from './pages/LeaderDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import HouseholdsList from './pages/HouseholdsList';
 import HouseholdDetail from './pages/HouseholdDetail';
+import HouseholdCreate from './pages/HouseholdCreate';
 import Alerts from './pages/Alerts';
 import CreateAlert from './pages/CreateAlert';
 import Ratings from './pages/Ratings';
@@ -50,9 +52,19 @@ function App() {
                   <LeaderDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/dashboard" element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/households" element={
                 <ProtectedRoute roles={['leader', 'admin']}>
                   <HouseholdsList />
+                </ProtectedRoute>
+              } />
+              <Route path="/households/new" element={
+                <ProtectedRoute roles={['leader', 'admin']}>
+                  <HouseholdCreate />
                 </ProtectedRoute>
               } />
               <Route path="/households/:id" element={
@@ -142,8 +154,10 @@ const DashboardRedirect = () => {
     }
 
     if (!loading && isAuthenticated && user) {
-      // Redirect leaders to leader dashboard
-      if (user.role === 'leader' || user.role === 'admin') {
+      // Redirect users based on their role
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'leader') {
         navigate('/leader/dashboard');
       }
     }

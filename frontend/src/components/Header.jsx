@@ -36,7 +36,7 @@ const Header = () => {
             {user ? (
               <>
                 {user.role === 'leader' && (
-                  <Nav.Link as={NavLink} to="/leader-dashboard" className="mx-2">
+                  <Nav.Link as={NavLink} to="/leader/dashboard" className="mx-2">
                     <FontAwesomeIcon icon={faTachometerAlt} className="me-2" />
                     Dashboard
                   </Nav.Link>
