@@ -61,7 +61,29 @@ router.get('/', protect, authorize('leader', 'admin'), async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+router.get('/public', async (req, res) => {
+  try {
+    let query = {};
+    
+    // Filter by zone if provided
+    if (req.query.zoneId) {
+      query.nyumbaKumiZone = req.query.zoneId;
+    }
 
+    const households = await Household.find(query)
+      .populate('user', 'name email phoneNumber')
+      .populate('nyumbaKumiZone', 'name');
+
+    res.status(200).json({
+      success: true,
+      count: households.length,
+      data: households
+    });
+  } catch (err) {
+    console.error('Error fetching households:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 // @route   GET /api/households/:id
 // @desc    Get household by ID
 // @access  Private

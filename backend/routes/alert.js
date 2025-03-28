@@ -3,6 +3,8 @@ const router = express.Router();
 const Alert = require('../models/Alert');
 const NyumbaKumiZone = require('../models/NyumbaKumiZone');
 const { protect, authorize } = require('../middleware/auth');
+const { main } = require('../utils/email');
+const {User}=require('../models/User');
 
 // @route   GET /api/alerts
 // @desc    Get all alerts for user (leaders get all in their zones, households get only their zone alerts)
@@ -138,17 +140,29 @@ router.post('/', protect, authorize('leader', 'admin'), async (req, res) => {
       }
     }
 
+    // Fetch users in the zone
+    const users = await User.find({ zone: req.body.zone });
+    console.log(users);
+    // Create an alert message
+    const message = `An alert has been sent regarding your zone.\n\nTitle: ${req.body.title}\nDescription: ${req.body.description}`;
+
+    // Send emails concurrently
+    await Promise.all(users.map(user => main(message, user.email)));
+
+    // Create the alert in the database
     const alert = await Alert.create(req.body);
 
     res.status(201).json({
       success: true,
       data: alert
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // @route   PUT /api/alerts/:id
 // @desc    Update alert

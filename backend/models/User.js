@@ -21,7 +21,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 6,
-    select: false
+    select: true
   },
   phoneNumber: {
     type: String,
@@ -31,6 +31,14 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['household', 'leader', 'admin'],
     default: 'household'
+  },
+  zone: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'NyumbaKumiZone'
+  },
+  household: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Household'
   },
   createdAt: {
     type: Date,
